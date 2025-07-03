@@ -1,0 +1,22 @@
+# Ignore Python cache and virtualenv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+.venv/
+.env
+.envrc
+
+# Ignore Git and IDE/editor files
+.git/
+.gitignore
+.vscode/
+.DS_Store
+
+# Ignore media and assets
+*.jpeg
+*.jpg
+*.png
+*.mp4

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+twilio
+requests
+protobuf
+python-dotenv
+gtfs-realtime-bindings
+playwright
