@@ -1,6 +1,6 @@
 import streamlit as st
 import asyncio
-from agent.commute_agent import trigger_commute_agent
+from trash.commute_agent_old import trigger_commute_agent
 
 st.set_page_config(page_title="🚇 Smart Commute Agent", layout="centered")
 

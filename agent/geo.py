@@ -1,24 +1,20 @@
-from math import radians, cos, sin, asin, sqrt
+from geopy.distance import geodesic
 
-# New York Penn Station location
-PENN_LAT = 40.7506
-PENN_LON = -73.9935
+# Define zones
+HOME_COORDS = (40.64101, -74.38390)
+PENN_COORDS = (40.7506, -73.9935)
+OFFICE_COORDS = (40.7581, -73.9700)
+NEWARK_COORDS = (40.7347, -74.1641)
 
-def haversine(lat1, lon1, lat2, lon2):
-    # Earth radius in km
-    R = 6371.0
+def is_near_location(lat, lon, target, threshold_m=10000):
+    return geodesic((lat, lon), target).meters <= threshold_m
 
-    # Convert degrees to radians
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-
-    # Haversine formula
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
-    return R * c  # Distance in km
-
-def is_near_penn_station(lat, lon, threshold_meters=300):
-    """Returns True if you're within ~300m of Penn Station."""
-    distance_km = haversine(lat, lon, PENN_LAT, PENN_LON)
-    return distance_km * 1000 <= threshold_meters
+def get_location_zone(lat, lon):
+    if is_near_location(lat, lon, HOME_COORDS):
+        
+        return "home"
+    elif is_near_location(lat, lon, PENN_COORDS) or is_near_location(lat, lon, OFFICE_COORDS):
+        return "nyc"
+    elif is_near_location(lat, lon, NEWARK_COORDS):
+        return "newark"
+    return "unknown"

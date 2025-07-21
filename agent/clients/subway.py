@@ -24,7 +24,7 @@ def get_subway_arrivals():
 
     # Current UTC time and buffered time (allow for travel to station)
     now_real = datetime.datetime.now(datetime.timezone.utc)
-    now_buffered = now_real + datetime.timedelta(minutes=5)
+    now_buffered = now_real + datetime.timedelta(minutes=3)
 
     arrivals = []
 

@@ -1,34 +1,27 @@
-# ✅ api/server.py (FastAPI endpoint)
-from fastapi import FastAPI
-from agent.commute_agent import trigger_commute_agent, start_background_monitoring
-from agent.geo import is_near_penn_station
-import asyncio
+from fastapi import FastAPI, BackgroundTasks
+from agent.commute_agent import trigger_commute_agent
+from pydantic import BaseModel, model_validator
+from typing import Optional
 
 app = FastAPI()
 
-from utils.location_store import save_location, load_location
+class TriggerBody(BaseModel):
+    zone: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
-@app.post("/update_location")
-async def update_location(payload: dict):
-    save_location(payload["lat"], payload["lon"], payload["timestamp"])
-    print("📍 Location updated:", payload)
-    return {"status": "Location updated"}
+    @model_validator(mode="after")
+    def check_inputs(self) -> "TriggerBody":
+        if not self.zone and (self.lat is None or self.lon is None):
+            raise ValueError("Either zone OR both lat and lon must be provided.")
+        return self
 
 @app.post("/trigger")
-async def trigger_commute():
-    result = await trigger_commute_agent(location="triggered_from_phone")
-
-    latest_location = load_location()
-    # Check distance before starting background loop
-    if latest_location:
-        lat = latest_location.get("lat")
-        lon = latest_location.get("lon")
-        if not is_near_penn_station(lat, lon, threshold_meters=300):
-            result["recommendation"] = "📍 You are too far from Penn Station to start monitoring."
-            result["monitoring_started"] = False
-            return result
-
-    # Close enough, start monitor loop
-    asyncio.create_task(start_background_monitoring())
-    result["monitoring_started"] = True
-    return result
+async def trigger_commute(body: TriggerBody, background_tasks: BackgroundTasks):
+    background_tasks.add_task(
+        trigger_commute_agent,
+        location=body.zone or "triggered_from_phone",
+        lat=body.lat,
+        lon=body.lon
+    )
+    return {"status": "✅ Commute agent triggered and running in background."}

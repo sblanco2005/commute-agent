@@ -5,4 +5,7 @@ requests
 protobuf
 python-dotenv
 gtfs-realtime-bindings
-playwright
+pydantic
+geopy
+httpx
+tenacity

@@ -1,18 +1,20 @@
-FROM python:3.11
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
-COPY . .
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# If using Playwright
-RUN apt-get update && apt-get install -y wget gnupg libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2 libxshmfence1 libgbm1 libxrandr2 libglu1-mesa && \
-    pip install playwright && \
-    playwright install --with-deps
-
-RUN apt-get update && apt-get install -y tzdata
+COPY . .
 
 LABEL rebuild="force"
 
 EXPOSE 8080
+
 CMD ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8080"]
