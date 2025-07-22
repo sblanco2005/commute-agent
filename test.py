@@ -1,7 +1,5 @@
 import requests
 
-TELEGRAM_TOKEN = "7952832933:AAFbOAW90Qj7y-ej-SNByQqs9MjeroPYUI8"  # e.g. from @BotFather
-CHAT_ID = 7147628966
 
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
