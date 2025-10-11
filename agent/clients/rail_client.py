@@ -53,33 +53,56 @@ class NJTransitRailAPIClient:
             "token": (None, self.token),
             "station": (None, station_code)
         }
-        if station_code=="NY":
-            allowed_lines = {"NEC", "RARV", "NJCL"}
-        elif station_code=="NP":
-             allowed_lines = {"RARV"}
+
+        allowed_lines = {"NEC", "RARV", "NJCL"} if station_code == "NY" else {"RARV"}
+
         try:
             res = requests.post(url, files=files, headers={"accept": "text/plain"}, timeout=10)
             res.raise_for_status()
             data = res.json()
             trains = []
+
             for item in data.get("ITEMS", []):
                 line = item.get("LINEABBREVIATION", "").upper()
                 if line not in allowed_lines:
                     continue
-                sched_time = datetime.strptime(item["SCHED_DEP_DATE"], "%d-%b-%Y %I:%M:%S %p")
+
+                stops = item.get("STOPS", [])
+                if not stops:
+                    continue
+
+                first_stop = stops[0]
+                try:
+                    sched_time = datetime.strptime(first_stop["DEP_TIME"], "%d-%b-%Y %I:%M:%S %p")
+                    time_str = sched_time.strftime("%I:%M %p")
+                except Exception:
+                    time_str = "N/A"
+
+                stop_status = first_stop.get("STOP_STATUS", "").upper()
+                status = "DELAYED" if "DELAY" in stop_status else stop_status or "UNKNOWN"
+
                 trains.append({
                     "line": line,
                     "destination": unescape(item.get("DESTINATION", "N/A")),
-                    "time": sched_time.strftime("%I:%M %p"),
+                    "time": time_str,
                     "track": item.get("TRACK") or "?",
-                    "status": "DELAYED" if int(item.get("SEC_LATE", "0")) > 0 else "ON TIME"
+                    "status": status
                 })
+
+                print("Train Schedule:", json.dumps(item, indent=2))
+
                 if len(trains) >= limit:
                     break
-            return {"next_trains": trains, "delayed": any(t["status"] == "DELAYED" for t in trains)}
+
+            return {
+                "next_trains": trains,
+                "delayed": any("DELAY" in t["status"] for t in trains)
+            }
+
         except Exception as e:
             print(f"❌ Train schedule error: {e}")
             return {"next_trains": [], "delayed": False, "error": str(e)}
+        
 
     def get_station_alerts(self, station_code="NY"):
         url = f"{self.base_url}/api/TrainData/getStationMSG"

@@ -1,0 +1,20 @@
+uvicorn api.server:app --reload --host 0.0.0.0 --port 8502   TAILSCALE
+# Or with curl:
+curl -L https://fly.io/install.sh | sh
+
+# Add flyctl to your PATH for this session
+export FLYCTL_INSTALL="/Users/santiagoblanco/.fly"
+export PATH="$FLYCTL_INSTALL/bin:$PATH"
+
+
+# Now you can use flyctl (or fly)
+flyctl auth login
+
+# Deploy
+flyctl deploy
+
+flyctl status
+
+IN
+flyctl machine start e2860754cd54d8
+

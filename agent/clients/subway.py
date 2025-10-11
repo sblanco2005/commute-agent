@@ -1,17 +1,24 @@
+import os
 import requests
 import datetime
 import math
 from google.transit import gtfs_realtime_pb2
 from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # MTA GTFS feed for N/Q/R/W trains
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw"
-API_KEY = "Z276E3rCeTzOQEoBPPN4JCEc6GfvdnYE"  # ⬅️ replace with your real x-api-key
+API_KEY = os.getenv("MTA_API_KEY")
 
 # Stop IDs for 59th St – Lexington Ave (downtown platform)
 TARGET_STOP_IDS = {"R15S", "R16S", "R17S"}
 
 def get_subway_arrivals():
+    if not API_KEY:
+        return ["🚧 MTA API key not configured"]
+
     headers = {"x-api-key": API_KEY}
     feed = gtfs_realtime_pb2.FeedMessage()
 

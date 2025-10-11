@@ -2,6 +2,7 @@
 
 import os
 import asyncio
+from datetime import datetime
 from dotenv import load_dotenv
 from .clients.subway import get_subway_arrivals
 from agent.clients.bus_client import NJTransitBusAPIClient
@@ -89,9 +90,52 @@ def format_home_message(status, recommendation, weather=None):
 
     live_trips = status.get("live_trips", [])
     if live_trips:
-        msg.append("\n🛰️ *Live Vehicles (Detected by NJT)*")
+        msg.append("\n🛰️ *Live Vehicles (Real-Time Tracking)*")
         for trip in live_trips:
-            msg.append(f"• Bus #{trip.get('vehicle_id')} → {trip.get('header')} at {trip.get('departure_time')} ({trip.get('status')})")
+            vehicle = trip.get('vehicle_id', 'N/A')
+            header = trip.get('header', 'Unknown')
+            departure = trip.get('departure_time', 'N/A')
+            load = trip.get('passenger_load', '')
+
+            # Show real-time arrival if available
+            if trip.get('has_realtime'):
+                realtime_str = trip.get('realtime_arrival', '')
+                status = trip.get('stop_status', 'Unknown')
+
+                # Calculate minutes until arrival and format estimated time
+                minutes_away = "N/A"
+                estimated_time = "N/A"
+                try:
+                    # Parse the datetime string (format: "6/22/2023 12:53:00 AM")
+                    realtime_dt = datetime.strptime(realtime_str, "%m/%d/%Y %I:%M:%S %p")
+                    now = datetime.now()
+                    time_diff = (realtime_dt - now).total_seconds() / 60
+
+                    # Format the estimated arrival time
+                    estimated_time = realtime_dt.strftime("%I:%M %p").lstrip('0')
+
+                    if time_diff < 0:
+                        minutes_away = "Now/Departed"
+                    elif time_diff < 1:
+                        minutes_away = "Less than 1 min"
+                    else:
+                        minutes_away = f"{int(time_diff)} mins"
+                except Exception as e:
+                    # If parsing fails, show the raw time
+                    minutes_away = realtime_str
+                    estimated_time = realtime_str
+
+                msg.append(f"• Bus #{vehicle} → {header}")
+                msg.append(f"  ⏰ Scheduled: {departure}")
+                msg.append(f"  🎯 Real-Time ETA: {minutes_away} (arriving at {estimated_time}) - {status}")
+                if load:
+                    msg.append(f"  👥 Load: {load}")
+            else:
+                # Fallback to old format if no real-time data
+                trip_status = trip.get('status', 'Unknown')
+                msg.append(f"• Bus #{vehicle} → {header} at {departure} ({trip_status})")
+                if load:
+                    msg.append(f"  👥 Load: {load}")
     if weather:
         home_weather = weather.get("home", {})
         nyc_weather = weather.get("nyc", {})
