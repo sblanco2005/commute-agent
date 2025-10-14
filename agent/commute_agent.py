@@ -3,6 +3,7 @@
 import os
 import asyncio
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from .clients.subway import get_subway_arrivals
 from agent.clients.bus_client import NJTransitBusAPIClient
@@ -27,6 +28,8 @@ assert NJT_USERNAME and NJT_PASSWORD and NJT_BUS_BASE_URL and NJT_RAIL_BASE_URL
 bus_client = NJTransitBusAPIClient(NJT_USERNAME, NJT_PASSWORD, NJT_BUS_BASE_URL)
 rail_client = NJTransitRailAPIClient(NJT_USERNAME, NJT_PASSWORD, NJT_RAIL_BASE_URL)
 
+# Timezone configuration - NJ Transit API returns times in Eastern Time
+EASTERN_TZ = ZoneInfo("America/New_York")
 
 AUTO_HOME_FALLBACK_METERS = 10000
 
@@ -107,8 +110,12 @@ def format_home_message(status, recommendation, weather=None):
                 estimated_time = "N/A"
                 try:
                     # Parse the datetime string (format: "6/22/2023 12:53:00 AM")
+                    # NJ Transit API returns times in Eastern Time
                     realtime_dt = datetime.strptime(realtime_str, "%m/%d/%Y %I:%M:%S %p")
-                    now = datetime.now()
+                    realtime_dt = realtime_dt.replace(tzinfo=EASTERN_TZ)
+
+                    # Get current time in Eastern Time for accurate comparison
+                    now = datetime.now(EASTERN_TZ)
                     time_diff = (realtime_dt - now).total_seconds() / 60
 
                     # Format the estimated arrival time

@@ -16,10 +16,8 @@ API_KEY = os.getenv("MTA_API_KEY")
 TARGET_STOP_IDS = {"R15S", "R16S", "R17S"}
 
 def get_subway_arrivals():
-    if not API_KEY:
-        return ["🚧 MTA API key not configured"]
-
-    headers = {"x-api-key": API_KEY}
+    # API key is now optional - MTA made GTFS feeds publicly accessible
+    headers = {"x-api-key": API_KEY} if API_KEY else {}
     feed = gtfs_realtime_pb2.FeedMessage()
 
     try:

@@ -5,6 +5,7 @@ import os
 import asyncio
 import logging
 from datetime import datetime, time
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from agent.clients.bus_client import NJTransitBusAPIClient
 from agent.clients.rail_client import NJTransitRailAPIClient
@@ -26,17 +27,20 @@ rail_client = NJTransitRailAPIClient(NJT_USERNAME, NJT_PASSWORD, NJT_RAIL_BASE_U
 triggered_windows = set()  # Track which time windows have been triggered
 notification_cooldown_minutes = 15  # Don't spam notifications
 
+# Timezone configuration - all logic uses Eastern Time
+EASTERN_TZ = ZoneInfo("America/New_York")
+
 
 def should_trigger_morning_alert() -> tuple[bool, str]:
     """
     Check if we should trigger a morning bus alert based on:
-    1. Time window (5:45-6:05 AM or 6:05-6:30 AM)
+    1. Time window (5:45-6:05 AM or 6:05-6:30 AM Eastern Time)
     2. Bus is approaching/arriving soon
     3. Haven't notified in this window yet
 
     Returns: (should_trigger: bool, window_id: str)
     """
-    now = datetime.now()
+    now = datetime.now(EASTERN_TZ)
     current_time = now.time()
 
     # Define two time windows
@@ -96,7 +100,7 @@ def check_bus_approaching(is_fallback_time: bool = False) -> dict:
                     logger.info(f"🚍 Confirmed bus detected: #{vehicle_id}")
 
         # Check if there are any buses in the next 30 minutes
-        now = datetime.now()
+        now = datetime.now(EASTERN_TZ)
         upcoming_buses = []
 
         for bus in scheduled.get("next_buses", []):
@@ -157,7 +161,7 @@ async def morning_bus_check(auto_trigger_enabled: bool = True):
     """
     Periodic check for morning bus - runs every 5 minutes during morning hours.
     Triggers once per time window when a confirmed bus (not EMPTY) is detected.
-    Windows: 5:45-6:05 AM, then 6:05-6:30 AM
+    Windows: 5:45-6:05 AM, then 6:05-6:30 AM Eastern Time
     Fallback: At 5:55 AM or 6:20 AM, send notification even if bus is still EMPTY
     """
     logger.info("🔍 Running morning bus check...")
@@ -172,8 +176,8 @@ async def morning_bus_check(auto_trigger_enabled: bool = True):
         logger.debug(f"Outside morning window or already triggered for {window_id}")
         return
 
-    # Check if we're at fallback time (5:55 AM or 6:20 AM)
-    now = datetime.now()
+    # Check if we're at fallback time (5:55 AM or 6:20 AM Eastern)
+    now = datetime.now(EASTERN_TZ)
     current_time = now.time()
     fallback_time1 = time(5, 55)  # 5:55 AM
     fallback_time2 = time(6, 20)  # 6:20 AM
@@ -216,12 +220,12 @@ async def morning_bus_check(auto_trigger_enabled: bool = True):
 def should_trigger_afternoon_alert() -> tuple[bool, str]:
     """
     Check if we should trigger an afternoon rail alert for evening commute.
-    Time window: 1:30 PM - 1:50 PM
+    Time window: 1:30 PM - 1:50 PM Eastern Time
     Checks for delays from Penn Station to Newark that may affect 3:40 PM commute.
 
     Returns: (should_trigger: bool, window_id: str)
     """
-    now = datetime.now()
+    now = datetime.now(EASTERN_TZ)
     current_time = now.time()
     global triggered_windows
 
