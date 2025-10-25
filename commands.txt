@@ -16,5 +16,5 @@ flyctl deploy
 flyctl status
 
 IN
-flyctl machine start e2860754cd54d8
 
+flyctl machine update e2860754cd54d8 --autostart --autostop=false -a commuteapp

@@ -102,39 +102,30 @@ def format_home_message(status, recommendation, weather=None):
 
             # Show real-time arrival if available
             if trip.get('has_realtime'):
-                realtime_str = trip.get('realtime_arrival', '')
-                status = trip.get('stop_status', 'Unknown')
+                realtime_str = trip.get('realtime_arrival', '')  # Format: "min:sec" from GPS
+                destination = trip.get('stop_status', 'Unknown')
 
-                # Calculate minutes until arrival and format estimated time
+                # Parse GPS-based ETA (format: "7:32" = 7 minutes 32 seconds)
                 minutes_away = "N/A"
-                estimated_time = "N/A"
                 try:
-                    # Parse the datetime string (format: "6/22/2023 12:53:00 AM")
-                    # NJ Transit API returns times in Eastern Time
-                    realtime_dt = datetime.strptime(realtime_str, "%m/%d/%Y %I:%M:%S %p")
-                    realtime_dt = realtime_dt.replace(tzinfo=EASTERN_TZ)
+                    if ':' in realtime_str:
+                        parts = realtime_str.split(':')
+                        total_minutes = int(parts[0])
+                        seconds = int(parts[1]) if len(parts) > 1 else 0
 
-                    # Get current time in Eastern Time for accurate comparison
-                    now = datetime.now(EASTERN_TZ)
-                    time_diff = (realtime_dt - now).total_seconds() / 60
-
-                    # Format the estimated arrival time
-                    estimated_time = realtime_dt.strftime("%I:%M %p").lstrip('0')
-
-                    if time_diff < 0:
-                        minutes_away = "Now/Departed"
-                    elif time_diff < 1:
-                        minutes_away = "Less than 1 min"
+                        if total_minutes < 1:
+                            minutes_away = "Less than 1 minute"
+                        elif total_minutes == 1:
+                            minutes_away = "1 minute"
+                        else:
+                            minutes_away = f"{total_minutes} minutes"
                     else:
-                        minutes_away = f"{int(time_diff)} mins"
+                        minutes_away = realtime_str
                 except Exception as e:
-                    # If parsing fails, show the raw time
                     minutes_away = realtime_str
-                    estimated_time = realtime_str
 
-                msg.append(f"• Bus #{vehicle} → {header}")
-                msg.append(f"  ⏰ Scheduled: {departure}")
-                msg.append(f"  🎯 Real-Time ETA: {minutes_away} (arriving at {estimated_time}) - {status}")
+                msg.append(f"• Bus #{vehicle} → {destination}")
+                msg.append(f"  🎯 Arriving in {minutes_away}")
                 if load:
                     msg.append(f"  👥 Load: {load}")
             else:

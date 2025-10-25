@@ -5,8 +5,17 @@
 
 app = 'commuteapp'
 primary_region = 'iad'
+kill_signal = 'SIGINT'
+kill_timeout = '10s'
 
 [build]
+
+[deploy]
+  release_command = 'echo "Deployment starting..."'
+
+[env]
+  TZ = 'America/New_York'
+  PYTHONUNBUFFERED = '1'
 
 [http_service]
   internal_port = 8080

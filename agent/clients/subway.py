@@ -13,7 +13,7 @@ FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-n
 API_KEY = os.getenv("MTA_API_KEY")
 
 # Stop IDs for 59th St – Lexington Ave (downtown platform)
-TARGET_STOP_IDS = {"R15S", "R16S", "R17S"}
+TARGET_STOP_IDS = {"R15S"}
 
 def get_subway_arrivals():
     # API key is now optional - MTA made GTFS feeds publicly accessible

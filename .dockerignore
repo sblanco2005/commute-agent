@@ -6,6 +6,8 @@ __pycache__/
 *.log
 *.sqlite3
 .venv/
+venv/
+env/
 .env
 .envrc
 
@@ -13,6 +15,7 @@ __pycache__/
 .git/
 .gitignore
 .vscode/
+.idea/
 .DS_Store
 
 # Ignore media and assets
@@ -20,3 +23,33 @@ __pycache__/
 *.jpg
 *.png
 *.mp4
+
+# Ignore test files and scripts
+test_*.py
+realtimebus.py
+realtimebus2.py
+trash/
+diagnose_*.py
+debug_*.py
+accurate_bus_tracker.py
+
+# Ignore build artifacts
+*.egg-info/
+dist/
+build/
+
+# Ignore token cache files
+*_token.json
+bus_token.json
+rail_token.json
+
+# Ignore documentation (not needed in container)
+*.md
+!README.md
+
+# Ignore fly.io files
+fly.toml
+.fly/
+
+# Ignore deployment scripts
+deploy.sh

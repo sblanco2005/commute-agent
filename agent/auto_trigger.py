@@ -73,82 +73,89 @@ def should_trigger_morning_alert() -> tuple[bool, str]:
 
 def check_bus_approaching(is_fallback_time: bool = False) -> dict:
     """
-    Check if confirmed buses (not EMPTY) are approaching/active.
+    Check if buses are approaching using accurate stop predictions.
     Returns dict with status and bus info.
-    Only triggers on actual buses with valid vehicle IDs.
+    Uses getStopPredictions API which only returns buses that will actually serve this stop.
 
     Args:
-        is_fallback_time: If True (at 5:55 AM or 6:20 AM), send notification even if bus is EMPTY
+        is_fallback_time: If True (at 5:55 AM or 6:20 AM), send notification even if no predictions available
     """
     try:
-        # Get scheduled buses
-        scheduled = bus_client.get_bus_schedule_to_nyc(limit=5)
+        # Get accurate stop predictions (only buses serving stop 28883)
+        live_trips = bus_client.get_bus_live_trips_from_stop(route="113", stop="28883")
 
-        # Get live bus positions
-        live_trips = bus_client.get_bus_live_trips_from_stop()
+        # All trips returned are valid predictions for this stop
+        # No need to filter for "EMPTY" - the API only returns actual buses
 
-        # Filter out EMPTY buses - only keep confirmed vehicles
-        confirmed_buses = []
-        all_live_trips = live_trips or []
-
-        if all_live_trips:
-            for trip in all_live_trips:
-                vehicle_id = trip.get('vehicle_id', '')
-                # Filter out EMPTY or missing vehicle IDs
-                if vehicle_id and vehicle_id.strip() and vehicle_id.upper() != 'EMPTY':
-                    confirmed_buses.append(trip)
-                    logger.info(f"🚍 Confirmed bus detected: #{vehicle_id}")
-
-        # Check if there are any buses in the next 30 minutes
-        now = datetime.now(EASTERN_TZ)
         upcoming_buses = []
+        real_time_buses = []
+        scheduled_buses = []
 
-        for bus in scheduled.get("next_buses", []):
-            bus_time_str = bus.get("time", "")
-            try:
-                # Parse bus time (format: "HH:MM AM/PM")
-                bus_time = datetime.strptime(bus_time_str, "%I:%M %p").time()
-                bus_datetime = now.replace(hour=bus_time.hour, minute=bus_time.minute, second=0)
+        for trip in live_trips or []:
+            vehicle_id = trip.get('vehicle_id', '')
+            eta_minutes = trip.get('eta_minutes')
+            eta_text = trip.get('realtime_arrival', 'N/A')
+            is_scheduled = trip.get('is_scheduled', False)
 
-                # Check if bus is within next 30 minutes
-                time_until_bus = (bus_datetime - now).total_seconds() / 60
+            # Only consider buses in next 30 minutes
+            if eta_minutes is not None and eta_minutes <= 30:
+                bus_info = {
+                    "vehicle_id": vehicle_id,
+                    "eta_text": eta_text,
+                    "minutes_away": eta_minutes,
+                    "route": trip.get('route', '113'),
+                    "status": "Real-time" if not is_scheduled else "Scheduled"
+                }
+                upcoming_buses.append(bus_info)
 
-                if 0 <= time_until_bus <= 30:
-                    upcoming_buses.append({
-                        "time": bus_time_str,
-                        "minutes_away": int(time_until_bus),
-                        "status": bus.get("remarks", "On time")
-                    })
-            except Exception as e:
-                logger.warning(f"Failed to parse bus time '{bus_time_str}': {e}")
+                if not is_scheduled:
+                    real_time_buses.append(trip)
+                    logger.info(f"🚍 Real-time bus detected: #{vehicle_id} - {eta_text}")
+                else:
+                    scheduled_buses.append(trip)
+                    logger.info(f"📅 Scheduled bus: #{vehicle_id} - {eta_text}")
 
-        # CONFIRMED buses detected - trigger immediately
-        if confirmed_buses:
-            closest_bus = confirmed_buses[0]
+        # PRIORITY 1: Real-time buses detected - trigger immediately
+        if real_time_buses:
+            closest_bus = real_time_buses[0]
             vehicle_id = closest_bus.get('vehicle_id', 'N/A')
-            logger.info(f"🛰️ Confirmed live bus detected: #{vehicle_id}")
+            eta_text = closest_bus.get('realtime_arrival', 'N/A')
+            logger.info(f"🛰️ Real-time bus confirmed: #{vehicle_id} arriving in {eta_text}")
             return {
                 "should_notify": True,
-                "reason": "confirmed_bus_detected",
-                "live_buses": confirmed_buses,
+                "reason": "real_time_bus_detected",
+                "live_buses": real_time_buses,
                 "upcoming_buses": upcoming_buses
             }
 
-        # FALLBACK: At 5:55 AM or 6:20 AM, send notification even if bus is EMPTY
+        # PRIORITY 2: Scheduled buses within 30 minutes - trigger
+        if scheduled_buses:
+            closest_bus = scheduled_buses[0]
+            vehicle_id = closest_bus.get('vehicle_id', 'N/A')
+            eta_text = closest_bus.get('realtime_arrival', 'N/A')
+            logger.info(f"📅 Scheduled bus found: #{vehicle_id} at {eta_text}")
+            return {
+                "should_notify": True,
+                "reason": "scheduled_bus_within_30min",
+                "live_buses": scheduled_buses,
+                "upcoming_buses": upcoming_buses
+            }
+
+        # FALLBACK: At 5:55 AM or 6:20 AM, send notification even if no predictions
         if is_fallback_time:
-            logger.info(f"⏰ Fallback time reached - sending notification even with EMPTY buses")
+            logger.info(f"⏰ Fallback time reached - sending notification even without predictions")
             return {
                 "should_notify": True,
                 "reason": "fallback_time_trigger",
-                "live_buses": all_live_trips,  # Include EMPTY buses
+                "live_buses": [],
                 "upcoming_buses": upcoming_buses
             }
 
-        # Don't trigger on scheduled buses alone - wait for confirmed tracking
-        logger.debug(f"Only scheduled buses found, no confirmed vehicles yet")
+        # No buses found in next 30 minutes
+        logger.debug(f"No buses in next 30 minutes")
         return {
             "should_notify": False,
-            "reason": "no_confirmed_buses",
+            "reason": "no_buses_within_30min",
             "upcoming_buses": upcoming_buses
         }
 
@@ -160,9 +167,9 @@ def check_bus_approaching(is_fallback_time: bool = False) -> dict:
 async def morning_bus_check(auto_trigger_enabled: bool = True):
     """
     Periodic check for morning bus - runs every 5 minutes during morning hours.
-    Triggers once per time window when a confirmed bus (not EMPTY) is detected.
+    Triggers once per time window when buses are detected using accurate stop predictions.
     Windows: 5:45-6:05 AM, then 6:05-6:30 AM Eastern Time
-    Fallback: At 5:55 AM or 6:20 AM, send notification even if bus is still EMPTY
+    Fallback: At 5:55 AM or 6:20 AM, send notification even if no predictions available
     """
     logger.info("🔍 Running morning bus check...")
 
