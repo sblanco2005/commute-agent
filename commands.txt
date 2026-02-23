@@ -18,3 +18,5 @@ flyctl status
 IN
 
 flyctl machine update e2860754cd54d8 --autostart --autostop=false -a commuteapp
+
+fly logs -a commuteapp
