@@ -1,0 +1,9 @@
+services:
+  commuteapp:
+    build: .
+    container_name: commuteapp
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
