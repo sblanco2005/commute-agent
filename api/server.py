@@ -130,6 +130,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 class TriggerBody(BaseModel):
     zone: Optional[str] = None
     lat: Optional[float] = None
